@@ -1,67 +1,81 @@
-from tabulate import tabulate
-#import tabulate function from tabulate module
-def round_robin(n,processes, quantum):# creating function with 3 arguments
-    """here n represents no.of processes ,quantum represents time quantum,processes is a list of tuples
-    representing arrival time, burst time, and process name"""
-
-    # initializing 3 lists of length n
-    wait_time = [0] * n         # stores waiting time
-    turnaround_time = [0] * n   # stores turn around time
-    remaining_time = [0] * n    # stores remaining burst time
-    for i in range(n):          # this loop initialize burst time to remaining_time
-        remaining_time[i] = processes[i][1]  # here processes[i][1]=burst time
-    t = 0                        # initialize current time
-    completed = 0                # initialize complete to no.of processes completed
-    #main loop for round_robin function
-    while True:  # it continues until all the processes have completed execution
-        done = True # sets to true
-        for i in range(n):
-            if processes[i][0] <= t and remaining_time[i] > 0: #comparing current time and remaining time
-                 # iterate over all processes
-                done = False     # sets to False
-                if remaining_time[i] > quantum:
-                    # If the remaining burst time for the process is greater than the time quantum,
-                    # the algorithm subtracts the time quantum from the remaining burst time and adds the time quantum to t.
-                    t += quantum
-                    remaining_time[i] -= quantum
-                else: # If the remaining burst time for the process is less than or equal to the time quantum,
-                    t += remaining_time[i]
-                    wait_time[i] = t - processes[i][0] - processes[i][1]
-                    remaining_time[i] = 0
-                    completed += 1
-                    turnaround_time[i] = t - processes[i][0]
-        if done == True:
-            break
-        if completed == n:
-            break
-    # calculating averages of waiting_time and turnaround time
-    avg_wait_time = sum(wait_time) / n
-    avg_turnaround_time = sum(turnaround_time) / n
+import random
+import statistics
 
 
-
-    # Print the results in a table format
-    results = []
-    for i in range(n):
-        process_name = processes[i][2]
-        arrival_time = processes[i][0]
-        burst_time = processes[i][1]
-        turnaround = turnaround_time[i]
-        waiting = wait_time[i]
-        results.append([process_name,arrival_time, burst_time, turnaround, waiting])
-    print(tabulate(results, headers=["Process", "Arrival Time", "Burst Time", "Turnaround Time", "Waiting Time"])) # tabulate function from tabulate mmodule
-
-    print("Average waiting time:", avg_wait_time)
-    print("Average turnaround time:", avg_turnaround_time)
+class Process:
+    def _init_(self, pid, arrival_time, burst_time):
+        self.pid = pid
+        self.arrival_time = arrival_time
+        self.burst_time = burst_time
+        self.remaining_time = burst_time
+        self.waiting_time = 0
+        self.turnaround_time = 0
 
 
-n = int(input("Enter the number of processes: "))  # taking user input of no.of processes
-quantum = int(input("Enter time quantum: "))       # taking user input of time quantum
-processes = []                                     # create empty list
-for i in range(n):                                 #iterating for loop n times=no.of processes
-    arrival_time = int(input("Enter arrival time for process {}: ".format(i+1))) # taking user input of arrival time
-    burst_time = int(input("Enter burst time for process {}: ".format(i+1)))# taking user input of burst time
-    process_name = "P{}".format(i+1)
-    processes.append([arrival_time, burst_time, process_name]) # apppending all to process list  with inner tuples inside
+def generate_processes(num_processes):
+    processes = []
+    for i in range(num_processes):
+        arrival_time = random.randint(0, 50)
+        burst_time = random.randint(1, 20)
+        process = Process(i, arrival_time, burst_time)
+        processes.append(process)
+    return processes
 
-round_robin(n,processes, quantum)
+
+def round_robin(processes, time_quantum, max_time):
+    time = 0
+    ready_queue = []
+    completed_processes = []
+
+    while time < max_time:
+        for process in processes:
+            if process.arrival_time == time:
+                ready_queue.append(process)
+
+        if ready_queue:
+            current_process = ready_queue.pop(0)
+            current_process.remaining_time -= time_quantum
+
+            for process in ready_queue:
+                process.waiting_time += time_quantum
+
+            if current_process.remaining_time <= 0:
+                current_process.turnaround_time = time + time_quantum + current_process.remaining_time - current_process.arrival_time
+                completed_processes.append(current_process)
+            else:
+                ready_queue.append(current_process)
+
+        time += time_quantum
+
+    return completed_processes
+
+
+def run_simulation(num_processes, time_quantum, max_time):
+    processes = generate_processes(num_processes)
+    completed_processes = round_robin(processes, time_quantum, max_time)
+
+    waiting_times = [process.waiting_time for process in completed_processes]
+    turnaround_times = [process.turnaround_time for process in completed_processes]
+
+    avg_waiting_time = statistics.mean(waiting_times)
+    avg_turnaround_time = statistics.mean(turnaround_times)
+
+    return avg_waiting_time, avg_turnaround_time
+
+
+def compare_with_ideal(avg_waiting_time, avg_turnaround_time):
+    print("Round Robin Results:")
+    print(f"Average waiting time: {avg_waiting_time}")
+    print(f"Average turnaround time: {avg_turnaround_time}")
+
+    # Add comparison with an ideal scheduler
+    # For example, compare with the Shortest Job Next (SJN) scheduling algorithm
+
+
+if _name_ == "_main_":
+    num_processes = 10
+    time_quantum = 4
+    max_time = 100
+
+    avg_waiting_time, avg_turnaround_time = run_simulation(num_processes, time_quantum, max_time)
+    compare_with_ideal(avg_waiting_time, avg_turnaround_time)
